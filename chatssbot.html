@@ -1,0 +1,436 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Student Finance Manager — AI Smart Wallet</title>
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    :root{
+      --bg:#071029; /* deep navy */
+      --card:#08131f;
+      --accent:#3b82f6;
+      --accent-2:#7c3aed;
+      --glass: rgba(255,255,255,0.03);
+      --muted: #9aa6bf;
+      --success:#10b981;
+      --danger:#ef4444;
+      --radius:14px;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, 'Helvetica Neue', Arial;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%;margin:0;background:radial-gradient(1200px 600px at 10% 10%, rgba(59,130,246,0.06), transparent), linear-gradient(180deg,var(--bg), #020617);color:#e6eef8}
+    .app{max-width:1200px;margin:28px auto;padding:20px}
+    header{display:flex;align-items:center;gap:16px;margin-bottom:18px}
+    .logo{display:flex;align-items:center;gap:12px}
+    .logo .mark{width:58px;height:58px;border-radius:12px;background:linear-gradient(135deg,var(--accent),var(--accent-2));box-shadow:0 8px 30px rgba(59,130,246,0.12);display:flex;align-items:center;justify-content:center;font-weight:800}
+    h1{font-size:20px;margin:0}
+    p.lead{margin:0;color:var(--muted);font-size:13px}
+
+    .grid{display:grid;grid-template-columns:360px 1fr;gap:20px}
+    .panel{background:linear-gradient(180deg,var(--card), rgba(8,19,31,0.6));border-radius:var(--radius);padding:16px;box-shadow: 0 6px 30px rgba(2,6,23,0.6);}
+    .card{background:linear-gradient(180deg,rgba(255,255,255,0.02), rgba(255,255,255,0.01));padding:12px;border-radius:12px}
+
+    .balance{display:flex;flex-direction:column;gap:10px}
+    .amount{font-size:28px;font-weight:700}
+    .small{font-size:13px;color:var(--muted)}
+
+    .quick-actions{display:flex;gap:8px;margin-top:8px}
+    .btn{padding:8px 12px;border-radius:10px;background:var(--glass);border:1px solid rgba(255,255,255,0.02);cursor:pointer;transition:transform .12s, box-shadow .12s}
+    .btn:hover{transform:translateY(-3px);box-shadow:0 8px 20px rgba(0,0,0,0.4)}
+    .btn.primary{background:linear-gradient(90deg, rgba(59,130,246,0.14), rgba(124,58,237,0.12));border:1px solid rgba(124,58,237,0.12)}
+
+    .transactions{margin-top:14px}
+    .tx{display:flex;justify-content:space-between;align-items:center;padding:10px;border-radius:10px;margin-bottom:8px;background:linear-gradient(90deg, rgba(255,255,255,0.01), transparent)}
+    .meta{display:flex;gap:10px;align-items:center}
+    .badge{font-size:12px;padding:6px 8px;border-radius:999px;background:rgba(255,255,255,0.03)}
+
+    .top-row{display:flex;gap:12px;margin-bottom:14px}
+    .analytics{display:grid;grid-template-columns:1fr 320px;gap:12px}
+    .chart-card{padding:12px;border-radius:12px;background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));}
+    canvas{width:100% !important;height:240px !important}
+
+    label{font-size:12px;color:var(--muted);display:block;margin-bottom:8px}
+    input,select,textarea{width:100%;padding:10px;border-radius:10px;border:1px solid rgba(255,255,255,0.03);background:transparent;color:inherit}
+    form .row{display:flex;gap:8px}
+    form .row > *{flex:1}
+    .small-muted{font-size:12px;color:#8fa0bf}
+
+    .goal{display:flex;justify-content:space-between;align-items:center;padding:8px;border-radius:10px;background:linear-gradient(90deg, rgba(255,255,255,0.01), transparent)}
+    .progress{height:10px;background:rgba(255,255,255,0.04);border-radius:10px;overflow:hidden}
+    .progress > i{display:block;height:100%;background:linear-gradient(90deg,var(--accent),var(--accent-2))}
+
+    footer{margin-top:18px;color:var(--muted);font-size:13px;text-align:center}
+
+    /* responsive */
+    @media (max-width:980px){.grid{grid-template-columns:1fr}.analytics{grid-template-columns:1fr}.top-row{flex-direction:column}.logo .mark{width:46px;height:46px}}
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <div class="logo">
+        <div class="mark">SF</div>
+        <div>
+          <h1>Student Finance Manager</h1>
+          <p class="lead">AI-assisted expense categorization · predictive spending · goal tracking</p>
+        </div>
+      </div>
+      <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
+        <div class="small-muted">Student: <strong id="studentName">Alex</strong></div>
+        <div class="badge">Monthly budget: <strong id="monthlyBudgetDisplay">₹15,000</strong></div>
+      </div>
+    </header>
+
+    <div class="grid">
+      <!-- LEFT -->
+      <aside class="panel">
+        <div class="balance card">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <div>
+              <div class="small">Available Balance</div>
+              <div class="amount" id="availableBalance">₹0</div>
+            </div>
+            <div>
+              <div class="small">Savings Goal</div>
+              <div class="amount" id="savingsGoalSmall">—</div>
+            </div>
+          </div>
+
+          <div class="quick-actions">
+            <button class="btn primary" id="addExpenseBtn">+ Expense</button>
+            <button class="btn" id="addIncomeBtn">+ Income</button>
+            <button class="btn" id="importSample">Load Sample</button>
+          </div>
+        </div>
+
+        <div class="card transactions">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+            <strong>Recent transactions</strong>
+            <small class="small-muted">Auto-categorized</small>
+          </div>
+          <div id="txList"></div>
+        </div>
+
+        <div style="margin-top:12px" class="card">
+          <strong>Set monthly budget</strong>
+          <p class="small-muted">Set a soft limit — you'll get alerts when predictions show you'll exceed it.</p>
+          <div style="margin-top:8px">
+            <input id="monthlyBudget" type="number" placeholder="Enter monthly budget (₹)" />
+            <div style="display:flex;gap:8px;margin-top:8px">
+              <button class="btn primary" id="saveBudget">Save</button>
+              <button class="btn" id="resetBudget">Reset</button>
+            </div>
+          </div>
+        </div>
+
+      </aside>
+
+      <!-- RIGHT -->
+      <main>
+        <div class="top-row">
+          <div class="panel card" style="flex:1">
+            <strong>Predictive Analytics</strong>
+            <p class="small-muted">Projection for next 30 days based on past expenses</p>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px">
+              <div>
+                <div class="small">Predicted spend (30d)</div>
+                <div id="predictedSpend" style="font-weight:700;font-size:20px">₹0</div>
+                <div class="small-muted">Confidence: <span id="predictionConfidence">—</span></div>
+              </div>
+              <div style="text-align:right">
+                <div class="small">Budget status</div>
+                <div id="budgetStatus" style="font-weight:700">—</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel card" style="width:320px">
+            <strong>Goals</strong>
+            <div style="margin-top:10px" id="goalsList"></div>
+            <div style="margin-top:10px">
+              <label>New goal</label>
+              <input id="goalName" placeholder="Goal (e.g., Laptop)" />
+              <input id="goalAmount" type="number" placeholder="Target amount (₹)" style="margin-top:8px" />
+              <div style="display:flex;gap:8px;margin-top:8px">
+                <button class="btn primary" id="addGoalBtn">Add Goal</button>
+                <button class="btn" id="clearGoals">Clear</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="analytics">
+          <div class="chart-card card">
+            <strong>Spending by category (last 6 months)</strong>
+            <canvas id="catChart"></canvas>
+          </div>
+
+          <div class="card" style="padding:12px">
+            <strong>Monthly trend</strong>
+            <canvas id="trendChart" style="height:220px"></canvas>
+            <div style="margin-top:10px" class="small-muted">Tip: Add labeled transactions — the 'AI' will auto-categorize using description keywords.</div>
+          </div>
+        </div>
+
+        <div style="margin-top:12px" class="card">
+          <strong>Expense / Income form</strong>
+          <form id="txForm" style="margin-top:10px">
+            <div class="row">
+              <input id="txDesc" placeholder="Description (e.g., McDonald's, Fees, Rent)" required />
+              <select id="txType"><option value="expense">Expense</option><option value="income">Income</option></select>
+            </div>
+            <div class="row" style="margin-top:8px">
+              <input id="txAmount" type="number" placeholder="Amount (₹)" required />
+              <input id="txDate" type="date" />
+            </div>
+            <div style="display:flex;gap:8px;margin-top:8px">
+              <input id="txManualCat" placeholder="Manual category (optional)" />
+              <button class="btn primary" type="submit">Save Transaction</button>
+            </div>
+          </form>
+        </div>
+
+        <footer>Built with ❤ — AI features are rule-based prototypes for demo & learning.</footer>
+      </main>
+    </div>
+  </div>
+
+  <script>
+    /************* Sample data and simple AI *************
+     * This file is intentionally single-file so you can open it in VS Code Live Server.
+     * Comments explain core sections: data, categorizer, prediction, UI rendering, charts.
+     */
+
+    const sampleTx = [
+      {id:1,desc:'College Mess',amount:1200,type:'expense',date:'2025-08-02',cat:'Food'},
+      {id:2,desc:'Bus Pass',amount:600,type:'expense',date:'2025-08-05',cat:'Transport'},
+      {id:3,desc:'Part-time Salary',amount:8000,type:'income',date:'2025-08-10',cat:'Income'},
+      {id:4,desc:'Grocery Store',amount:950,type:'expense',date:'2025-08-12',cat:'Groceries'},
+      {id:5,desc:'Movie Night',amount:450,type:'expense',date:'2025-08-18',cat:'Entertainment'},
+      {id:6,desc:'Online Course',amount:1500,type:'expense',date:'2025-07-24',cat:'Education'},
+      {id:7,desc:'Coffee Shops',amount:250,type:'expense',date:'2025-07-29',cat:'Food'},
+      {id:8,desc:'Stationery',amount:300,type:'expense',date:'2025-06-15',cat:'Supplies'},
+      {id:9,desc:'Uber',amount:420,type:'expense',date:'2025-06-20',cat:'Transport'},
+      {id:10,desc:'Scholarship',amount:5000,type:'income',date:'2025-06-01',cat:'Income'},
+    ];
+
+    // persistent app state using localStorage
+    const state = {
+      tx: JSON.parse(localStorage.getItem('sf_tx')||'null') || sampleTx,
+      goals: JSON.parse(localStorage.getItem('sf_goals')||'null') || [],
+      monthlyBudget: Number(localStorage.getItem('sf_budget')||15000),
+      studentName: localStorage.getItem('sf_name') || 'Alex'
+    };
+
+    document.getElementById('studentName').innerText = state.studentName;
+
+    // category keywords (prototype AI)
+    const categoryKeywords = {
+      'Food': ['mess','canteen','mcdonald','kfc','restaurant','coffee','cafe','food'],
+      'Transport':['bus','uber','ola','taxi','pass','rail','train','metro'],
+      'Groceries':['grocery','supermarket','mart','store'],
+      'Education':['course','tuition','book','stationery','exam','university','college','fees'],
+      'Entertainment':['movie','cinema','netflix','concert','game','games'],
+      'Supplies':['stationery','pen','notebook','charger'],
+      'Rent':['rent','hostel','accommodation']
+    };
+
+    function autoCategorize(desc){
+      if(!desc) return 'Other';
+      const s = desc.toLowerCase();
+      for(const [cat,keywords] of Object.entries(categoryKeywords)){
+        for(const kw of keywords){
+          if(s.includes(kw)) return cat;
+        }
+      }
+      if(/salary|scholarship|stipend|income/.test(s)) return 'Income';
+      return 'Other';
+    }
+
+    /************* UI rendering *************/
+    const txListEl = document.getElementById('txList');
+    function renderTx(){
+      txListEl.innerHTML='';
+      const list = state.tx.slice().sort((a,b)=> new Date(b.date)-new Date(a.date)).slice(0,10);
+      for(const t of list){
+        const el = document.createElement('div');el.className='tx';
+        el.innerHTML = `
+          <div class='meta'>
+            <div style='width:44px;height:44px;border-radius:10px;background:linear-gradient(135deg, rgba(255,255,255,0.02), transparent);display:flex;align-items:center;justify-content:center;font-weight:700'>${(t.cat||t.desc)[0]}</div>
+            <div>
+              <div style='font-weight:600'>${t.desc}</div>
+              <div class='small-muted'>${t.cat || '—'} • ${t.date}</div>
+            </div>
+          </div>
+          <div style='text-align:right'>
+            <div style='font-weight:700'>${t.type==='expense' ? '-' : '+'}₹${Number(t.amount).toLocaleString()}</div>
+            <div class='small' style='margin-top:6px'>${t.type}</div>
+          </div>
+        `;
+        txListEl.appendChild(el);
+      }
+      const income = state.tx.filter(t=>t.type==='income').reduce((s,n)=>s+Number(n.amount),0);
+      const expense = state.tx.filter(t=>t.type==='expense').reduce((s,n)=>s+Number(n.amount),0);
+      const balance = income - expense;
+      document.getElementById('availableBalance').innerText = ₹${balance.toLocaleString()};
+    }
+
+    /************* Goals UI *************/
+    const goalsList = document.getElementById('goalsList');
+    function renderGoals(){
+      goalsList.innerHTML='';
+      if(state.goals.length===0){
+        goalsList.innerHTML='<div class="small-muted">No goals yet — add one to start saving.</div>';
+        document.getElementById('savingsGoalSmall').innerText = '—';
+        return;
+      }
+      state.goals.forEach((g,idx)=>{
+        const wrapper = document.createElement('div');wrapper.className='goal';
+        const progress = Math.min(100, Math.round((g.saved||0)/g.target*100));
+        wrapper.innerHTML = `
+          <div>
+            <div style='font-weight:600'>${g.name}</div>
+            <div class='small-muted'>₹${(g.saved||0).toLocaleString()} of ₹${g.target.toLocaleString()}</div>
+          </div>
+          <div style='width:40%'>
+            <div class='progress' title='${progress}%'><i style='width:${progress}%'></i></div>
+          </div>
+        `;
+        goalsList.appendChild(wrapper);
+      });
+      const mainGoal = state.goals[0];
+      document.getElementById('savingsGoalSmall').innerText = ₹${mainGoal.target.toLocaleString()};
+    }
+
+    /************* Predictive model (simple) *************/
+    function monthlyTotals(months=6){
+      const now = new Date();
+      const res = [];
+      for(let i=months-1;i>=0;i--){
+        const d = new Date(now.getFullYear(), now.getMonth()-i,1);
+        const key = ${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')};
+        const total = state.tx.filter(t=>t.type==='expense' && t.date.startsWith(key)).reduce((s,n)=>s+Number(n.amount),0);
+        res.push({key,total,month:d});
+      }
+      return res;
+    }
+
+    function predictNext(){
+      const data = monthlyTotals(6);
+      const y = data.map(d=>d.total);
+      if(y.length===0) return {pred:0,conf:0};
+      const avg = y.reduce((a,b)=>a+b,0)/y.length;
+      const n = y.length;const xs = Array.from({length:n},(_,i)=>i);
+      const xmean = (n-1)/2;const ymean = avg;
+      let num=0, den=0; for(let i=0;i<n;i++){num += (xs[i]-xmean)(y[i]-ymean); den += (xs[i]-xmean)*2}
+      const slope = den===0?0:num/den; const intercept = ymean - slope*xmean;
+      const pred = Math.max(0, Math.round(intercept + slope*n));
+      let ssTot =0, ssRes=0; for(let i=0;i<n;i++){ssTot+=(y[i]-ymean)*2; const yhat = intercept + slope*xs[i]; ssRes+=(y[i]-yhat)*2}
+      const r2 = ssTot===0?1: Math.max(0, 1 - ssRes/ssTot);
+      return {pred,conf:Math.round(r2*100)};
+    }
+
+    /************* Charts *************/
+    let catChart, trendChart;
+    function renderCharts(){
+      // category sums (last 6 months)
+      const cats = {};
+      const sixMonths = monthlyTotals(6);
+      const monthsKeys = sixMonths.map(d=>d.key);
+      state.tx.forEach(t=>{
+        const m = t.date.slice(0,7);
+        if(!monthsKeys.includes(m)) return;
+        if(t.type!=='expense') return;
+        const c = t.cat || autoCategorize(t.desc);
+        cats[c] = (cats[c]||0) + Number(t.amount);
+      });
+      const catLabels = Object.keys(cats).length?Object.keys(cats):['No data'];
+      const catValues = Object.values(cats).length?Object.values(cats):[1];
+
+      if(catChart) catChart.destroy();
+      catChart = new Chart(document.getElementById('catChart'),{
+        type:'doughnut',data:{labels:catLabels,datasets:[{data:catValues}]},options:{plugins:{legend:{labels:{color:'#cfe6ff'}}}}
+      });
+
+      const months = sixMonths.map(d=>d.month.toLocaleString('default',{month:'short'}));
+      const totals = sixMonths.map(d=>d.total);
+      if(trendChart) trendChart.destroy();
+      trendChart = new Chart(document.getElementById('trendChart'),{
+        type:'line',data:{labels:months,datasets:[{label:'Expenses',data:totals, fill:true, tension:0.3}]},options:{plugins:{legend:{display:false}}}
+      });
+    }
+
+    /************* Analysis & Alerts *************/
+    function runAnalysis(){
+      const {pred,conf} = predictNext();
+      document.getElementById('predictedSpend').innerText = ₹${pred.toLocaleString()};
+      document.getElementById('predictionConfidence').innerText = conf + '%';
+      const bud = state.monthlyBudget;
+      document.getElementById('monthlyBudgetDisplay').innerText = ₹${bud.toLocaleString()};
+      const statusEl = document.getElementById('budgetStatus');
+      if(pred > bud){
+        statusEl.innerText = At risk of exceeding budget;
+        statusEl.style.color = 'var(--danger)';
+        if('Notification' in window && Notification.permission==='granted'){
+          new Notification('Budget alert', {body:Predicted ₹${pred.toLocaleString()} exceeds budget ₹${bud.toLocaleString()}});
+        }
+      } else {
+        statusEl.innerText = On track;
+        statusEl.style.color = 'var(--success)';
+      }
+      renderCharts();
+    }
+
+    /************* Form handling *************/
+    document.getElementById('txForm').addEventListener('submit', e=>{
+      e.preventDefault();
+      const desc = document.getElementById('txDesc').value.trim();
+      const type = document.getElementById('txType').value;
+      const amount = Number(document.getElementById('txAmount').value);
+      const date = document.getElementById('txDate').value || new Date().toISOString().slice(0,10);
+      const manualCat = document.getElementById('txManualCat').value.trim();
+      const cat = manualCat || autoCategorize(desc);
+      const tx = {id:Date.now(),desc,type,amount,date,cat};
+      state.tx.push(tx);
+      localStorage.setItem('sf_tx', JSON.stringify(state.tx));
+      if(type==='income' && state.goals.length>0){ state.goals[0].saved = (state.goals[0].saved||0) + amount; localStorage.setItem('sf_goals', JSON.stringify(state.goals)); }
+      renderTx(); renderGoals(); runAnalysis();
+      document.getElementById('txForm').reset();
+    });
+
+    document.getElementById('addGoalBtn').addEventListener('click', ()=>{
+      const name = document.getElementById('goalName').value.trim();
+      const target = Number(document.getElementById('goalAmount').value);
+      if(!name || !target) return alert('Enter goal name and amount');
+      state.goals.push({name,target,saved:0});
+      localStorage.setItem('sf_goals', JSON.stringify(state.goals)); renderGoals();
+      document.getElementById('goalName').value='';document.getElementById('goalAmount').value='';
+    });
+    document.getElementById('clearGoals').addEventListener('click', ()=>{ if(confirm('Clear all goals?')){ state.goals=[]; localStorage.setItem('sf_goals', JSON.stringify(state.goals)); renderGoals(); } });
+
+    document.getElementById('saveBudget').addEventListener('click', ()=>{
+      const v = Number(document.getElementById('monthlyBudget').value);
+      if(!v || v<=0) return alert('Enter valid budget');
+      state.monthlyBudget = v; localStorage.setItem('sf_budget', v); document.getElementById('monthlyBudget').value=''; runAnalysis();
+    });
+    document.getElementById('resetBudget').addEventListener('click', ()=>{ state.monthlyBudget = 15000; localStorage.setItem('sf_budget', 15000); runAnalysis(); });
+
+    document.getElementById('addExpenseBtn').addEventListener('click', ()=>{ document.getElementById('txType').value='expense'; document.getElementById('txDesc').focus(); });
+    document.getElementById('addIncomeBtn').addEventListener('click', ()=>{ document.getElementById('txType').value='income'; document.getElementById('txDesc').focus(); });
+
+    document.getElementById('importSample').addEventListener('click', ()=>{ if(confirm('Load sample transactions? This will append sample data.')){ state.tx = state.tx.concat(sampleTx); localStorage.setItem('sf_tx', JSON.stringify(state.tx)); renderTx(); renderGoals(); runAnalysis(); } });
+
+    // initial render
+    renderTx(); renderGoals(); renderCharts(); runAnalysis();
+
+    // request notification permission (optional)
+    if('Notification' in window && Notification.permission !== 'granted') Notification.requestPermission();
+
+    // expose debug API
+    window.SF = {state, autoCategorize, predictNext, monthlyTotals};
+
+  </script>
+</body>
+</html>
